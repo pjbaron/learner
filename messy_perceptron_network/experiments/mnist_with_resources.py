@@ -123,7 +123,7 @@ def run_continual_learning_with_resources(
     print(f"  Device: {device}\n")
 
     # Create network with resources
-    print("Creating network with plasticity resources...")
+    print("Creating network with plasticity resources and sparse activations...")
     network = FastMessyPerceptronNetworkWithResources(
         n_perceptrons=n_perceptrons,
         avg_degree=avg_degree,
@@ -133,6 +133,7 @@ def run_continual_learning_with_resources(
         initial_resource=initial_resource,
         depletion_rate=depletion_rate,
         recovery_rate=recovery_rate,
+        sparsity_k=int(n_perceptrons * 0.1),  # 10% sparse activations (k-WTA)
         seed=seed
     )
 
@@ -240,8 +241,8 @@ if __name__ == "__main__":
         batch_size=64,
         base_lr=0.001,
         initial_resource=1.0,
-        depletion_rate=100.0,     # Moderate with binary gating
-        recovery_rate=0.001,      # Slow recovery
+        depletion_rate=1000.0,    # Aggressive depletion with k-WTA
+        recovery_rate=0.0001,     # Very slow recovery
         device=device,
         seed=42
     )

@@ -94,8 +94,8 @@ class ResourceBasedTrainer:
         # Backward pass
         loss.backward()
 
-        # CRITICAL: Scale gradients by plasticity resources (binary gating at 0.5)
-        self.network.apply_plasticity_resources(binary_threshold=0.5)
+        # CRITICAL: Scale gradients by plasticity resources (linear scaling with k-WTA)
+        self.network.apply_plasticity_resources(binary_threshold=0)
 
         # Gradient clipping
         grad_norm = torch.nn.utils.clip_grad_norm_(

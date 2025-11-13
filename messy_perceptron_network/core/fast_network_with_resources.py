@@ -38,6 +38,7 @@ class FastMessyPerceptronNetworkWithResources(nn.Module):
                  initial_resource=1.0,
                  depletion_rate=0.1,
                  recovery_rate=0.01,
+                 sparsity_k=0,  # If > 0, apply k-WTA (keep top-k active)
                  seed=None):
         """
         Initialize network with plasticity resources.
@@ -72,6 +73,9 @@ class FastMessyPerceptronNetworkWithResources(nn.Module):
         self.initial_resource = initial_resource
         self.depletion_rate = depletion_rate
         self.recovery_rate = recovery_rate
+
+        # Sparse activation (k-WTA)
+        self.sparsity_k = sparsity_k
 
         # Learnable thresholds
         self.thresholds = nn.Parameter(torch.randn(n_perceptrons) * 0.1)
@@ -186,6 +190,10 @@ class FastMessyPerceptronNetworkWithResources(nn.Module):
             # Add input drive instead of clamping (preserves gradient flow)
             activations = torch.tanh(z + input_drive - effective_thresholds)
 
+            # Apply k-Winner-Take-All sparsity (if enabled)
+            if self.sparsity_k > 0:
+                activations = self._apply_kwta(activations)
+
             if return_history:
                 activation_history.append(activations.clone())
 
@@ -195,6 +203,32 @@ class FastMessyPerceptronNetworkWithResources(nn.Module):
             return outputs, activation_history
         else:
             return outputs
+
+    def _apply_kwta(self, activations):
+        """
+        Apply k-Winner-Take-All to create sparse activations.
+
+        Keeps only the top-k neurons (by absolute activation value) active,
+        zeros out the rest. Preserves gradients.
+
+        Args:
+            activations: (batch, n_perceptrons)
+
+        Returns:
+            Sparse activations with only top-k active
+        """
+        batch_size = activations.shape[0]
+        k = self.sparsity_k
+
+        # Get top-k indices based on absolute activation values
+        _, topk_indices = torch.topk(torch.abs(activations), k, dim=1)
+
+        # Create mask for top-k
+        mask = torch.zeros_like(activations)
+        mask.scatter_(1, topk_indices, 1.0)
+
+        # Apply mask (preserves gradients)
+        return activations * mask
 
     def apply_plasticity_resources(self, binary_threshold=0.5):
         """
