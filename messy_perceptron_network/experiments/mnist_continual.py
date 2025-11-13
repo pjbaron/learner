@@ -145,6 +145,11 @@ class MNISTClassifier(nn.Module):
         """
         super(MNISTClassifier, self).__init__()
         self.network = network
+
+        # Input projection from 784 MNIST pixels to network input size
+        self.input_projection = nn.Linear(784, network.n_input_perceptrons)
+
+        # Output layer from network outputs to class logits
         self.output_layer = nn.Linear(network.n_output_perceptrons, n_classes)
 
     def forward(self, x):
@@ -157,8 +162,11 @@ class MNISTClassifier(nn.Module):
         Returns:
             logits: Class logits (batch, n_classes)
         """
+        # Project inputs to network input size
+        projected_inputs = self.input_projection(x)
+
         # Get network outputs
-        network_out = self.network(x)
+        network_out = self.network(projected_inputs)
 
         # Map to class logits
         logits = self.output_layer(network_out)
@@ -360,8 +368,8 @@ def run_continual_learning_experiment(
     network = FastMessyPerceptronNetwork(
         n_perceptrons=n_perceptrons,
         avg_degree=avg_degree,
-        n_input_perceptrons=200,  # Subset of 784 MNIST pixels
-        n_output_perceptrons=100,  # Map to 10 classes via output layer
+        n_input_perceptrons=min(784, n_perceptrons // 2),  # Use full MNIST or half the network
+        n_output_perceptrons=min(200, n_perceptrons // 4),  # Map to 10 classes via output layer
         settling_iterations=7,
         seed=seed
     )
