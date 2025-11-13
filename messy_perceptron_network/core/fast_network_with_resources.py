@@ -153,8 +153,8 @@ class FastMessyPerceptronNetworkWithResources(nn.Module):
         if device != self.thresholds.device:
             self.to(device)
 
+        # Initialize activations
         activations = torch.zeros(batch_size, self.n_perceptrons, device=device)
-        activations[:, self.input_perceptron_indices] = inputs[:, :self.n_input_perceptrons]
 
         # Create sparse matrices
         signal_adj = torch.sparse_coo_tensor(
@@ -162,26 +162,29 @@ class FastMessyPerceptronNetworkWithResources(nn.Module):
             self.signal_weights,
             (self.n_perceptrons, self.n_perceptrons),
             device=device
-        ).coalesce()
+        )
 
         threshold_adj = torch.sparse_coo_tensor(
             self.threshold_indices.to(device),
             self.threshold_weights,
             (self.n_perceptrons, self.n_perceptrons),
             device=device
-        ).coalesce()
+        )
 
         activation_history = [] if return_history else None
+
+        # Prepare strong input drive (preserves gradients unlike clamping)
+        input_drive = torch.zeros(batch_size, self.n_perceptrons, device=device)
+        input_drive[:, self.input_perceptron_indices] = inputs[:, :self.n_input_perceptrons] * 10.0
 
         # Settling iterations
         for iteration in range(self.settling_iterations):
             z = torch.sparse.mm(signal_adj, activations.t()).t()
             delta_theta = torch.sparse.mm(threshold_adj, activations.t()).t()
             effective_thresholds = self.thresholds.unsqueeze(0) + delta_theta
-            new_activations = torch.tanh(z - effective_thresholds)
 
-            activations = new_activations.clone()
-            activations[:, self.input_perceptron_indices] = inputs[:, :self.n_input_perceptrons]
+            # Add input drive instead of clamping (preserves gradient flow)
+            activations = torch.tanh(z + input_drive - effective_thresholds)
 
             if return_history:
                 activation_history.append(activations.clone())
@@ -200,13 +203,13 @@ class FastMessyPerceptronNetworkWithResources(nn.Module):
         Call this AFTER loss.backward() but BEFORE optimizer.step()
         """
         if self.signal_weights.grad is not None:
-            self.signal_weights.grad *= self.signal_resources.unsqueeze(0) if self.signal_resources.dim() == 1 else self.signal_resources
+            self.signal_weights.grad *= self.signal_resources
 
         if self.threshold_weights.grad is not None:
-            self.threshold_weights.grad *= self.threshold_resources.unsqueeze(0) if self.threshold_resources.dim() == 1 else self.threshold_resources
+            self.threshold_weights.grad *= self.threshold_resources
 
         if self.plasticity_weights.grad is not None:
-            self.plasticity_weights.grad *= self.plasticity_resources.unsqueeze(0) if self.plasticity_resources.dim() == 1 else self.plasticity_resources
+            self.plasticity_weights.grad *= self.plasticity_resources
 
         if self.thresholds.grad is not None:
             self.thresholds.grad *= self.threshold_param_resources
