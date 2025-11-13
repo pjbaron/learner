@@ -149,18 +149,20 @@ class FastMessyPerceptronNetwork(nn.Module):
         # Set input activations
         activations[:, self.input_perceptron_indices] = inputs[:, :self.n_input_perceptrons]
 
-        # Create sparse adjacency matrices on the correct device
+        # Create sparse adjacency matrices on the correct device (coalesced for better GPU performance)
         signal_adj = torch.sparse_coo_tensor(
             self.signal_indices.to(device),
-            self.signal_weights.to(device),
-            (self.n_perceptrons, self.n_perceptrons)
-        )
+            self.signal_weights,
+            (self.n_perceptrons, self.n_perceptrons),
+            device=device
+        ).coalesce()
 
         threshold_adj = torch.sparse_coo_tensor(
             self.threshold_indices.to(device),
-            self.threshold_weights.to(device),
-            (self.n_perceptrons, self.n_perceptrons)
-        )
+            self.threshold_weights,
+            (self.n_perceptrons, self.n_perceptrons),
+            device=device
+        ).coalesce()
 
         # Settling iterations
         activation_history = [] if return_history else None

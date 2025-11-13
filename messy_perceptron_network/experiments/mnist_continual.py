@@ -479,14 +479,20 @@ def run_continual_learning_experiment(
 
 
 if __name__ == "__main__":
+    # Detect device
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    print(f"Using device: {device}")
+    if device == 'cuda':
+        print(f"GPU: {torch.cuda.get_device_name(0)}")
+
     # Run experiment with smaller network for testing
     results = run_continual_learning_experiment(
         n_perceptrons=500,  # Smaller for faster testing
         avg_degree=15,
         n_epochs_per_task=3,
-        batch_size=32,
+        batch_size=64,  # Larger batch for better GPU utilization
         base_lr=0.001,
-        device='cpu',
+        device=device,
         seed=42
     )
 
