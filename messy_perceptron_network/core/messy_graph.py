@@ -106,10 +106,13 @@ class MessyGraphGenerator:
         n_extra_backbone = self.n_perceptrons // 10
         for _ in range(n_extra_backbone):
             src = random.randint(0, self.n_perceptrons - 2)
-            # Connect to a node further ahead
-            dst = random.randint(src + 2, min(src + 20, self.n_perceptrons - 1))
-            if (src, dst) not in backbone:
-                backbone.append((src, dst))
+            # Connect to a node further ahead (if possible)
+            min_dst = src + 2
+            max_dst = min(src + 20, self.n_perceptrons - 1)
+            if min_dst <= max_dst:  # Only create connection if valid range exists
+                dst = random.randint(min_dst, max_dst)
+                if (src, dst) not in backbone:
+                    backbone.append((src, dst))
 
         return backbone
 
