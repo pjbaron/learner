@@ -240,8 +240,8 @@ if __name__ == "__main__":
         batch_size=64,
         base_lr=0.001,
         initial_resource=1.0,
-        depletion_rate=0.1,
-        recovery_rate=0.01,
+        depletion_rate=1000.0,    # Very aggressive - freeze used weights
+        recovery_rate=0.0001,     # Very slow recovery
         device=device,
         seed=42
     )

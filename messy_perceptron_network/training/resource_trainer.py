@@ -103,43 +103,11 @@ class ResourceBasedTrainer:
             self.gradient_clip_norm
         )
 
-        # DEBUG: Check gradient magnitudes before optimizer step
-        if self.step_count == 0:
-            print(f"\nDEBUG Step 0 - Gradient Flow Check:")
-            if self.classifier.output_layer.weight.grad is not None:
-                print(f"  Output layer grad mean: {self.classifier.output_layer.weight.grad.abs().mean().item():.6f}")
-            else:
-                print(f"  Output layer grad: None")
-
-            if self.classifier.input_projection.weight.grad is not None:
-                print(f"  Input projection grad mean: {self.classifier.input_projection.weight.grad.abs().mean().item():.6f}")
-            else:
-                print(f"  Input projection grad: None")
-
-            if self.network.signal_weights.grad is not None:
-                print(f"  Network signal grad mean: {self.network.signal_weights.grad.abs().mean().item():.6f}")
-                print(f"  Network signal grad max: {self.network.signal_weights.grad.abs().max().item():.6f}")
-            else:
-                print(f"  Network signal grad: None")
-
-            if self.network.thresholds.grad is not None:
-                print(f"  Network thresholds grad mean: {self.network.thresholds.grad.abs().mean().item():.6f}")
-            else:
-                print(f"  Network thresholds grad: None")
-
-            print(f"  Signal resources before depletion: {self.network.signal_resources.mean().item():.6f}")
-
         # Update weights
         self.optimizer.step()
 
         # CRITICAL: Deplete resources based on weight changes
         self.network.deplete_resources(self.base_lr)
-
-        # DEBUG: Check resources after depletion
-        if self.step_count == 0:
-            print(f"  Signal resources after depletion: {self.network.signal_resources.mean().item():.6f}")
-            print(f"  Depletion rate: {self.network.depletion_rate}")
-            print(f"  Recovery rate: {self.network.recovery_rate}\n")
 
         # CRITICAL: Recover resources passively
         self.network.recover_resources()

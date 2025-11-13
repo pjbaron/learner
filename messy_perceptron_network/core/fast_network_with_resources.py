@@ -219,28 +219,43 @@ class FastMessyPerceptronNetworkWithResources(nn.Module):
         Deplete plasticity resources based on weight changes.
 
         Call this AFTER optimizer.step()
+
+        Note: We store previous weights to compute actual weight changes,
+        which better reflects true plasticity usage than gradient magnitude.
         """
         with torch.no_grad():
-            # Deplete based on gradient magnitudes (proxy for weight change)
-            if self.signal_weights.grad is not None:
-                depletion = self.depletion_rate * torch.abs(self.signal_weights.grad)
-                self.signal_resources -= depletion
-                self.signal_resources.clamp_(min=0.0)
+            # Initialize previous weight storage if not exists
+            if not hasattr(self, '_prev_signal_weights'):
+                self._prev_signal_weights = self.signal_weights.data.clone()
+                self._prev_threshold_weights = self.threshold_weights.data.clone()
+                self._prev_plasticity_weights = self.plasticity_weights.data.clone()
+                self._prev_thresholds = self.thresholds.data.clone()
+                return  # Skip depletion on first call
 
-            if self.threshold_weights.grad is not None:
-                depletion = self.depletion_rate * torch.abs(self.threshold_weights.grad)
-                self.threshold_resources -= depletion
-                self.threshold_resources.clamp_(min=0.0)
+            # Deplete based on actual weight changes
+            weight_change = torch.abs(self.signal_weights.data - self._prev_signal_weights)
+            depletion = self.depletion_rate * weight_change
+            self.signal_resources -= depletion
+            self.signal_resources.clamp_(min=0.0)
+            self._prev_signal_weights = self.signal_weights.data.clone()
 
-            if self.plasticity_weights.grad is not None:
-                depletion = self.depletion_rate * torch.abs(self.plasticity_weights.grad)
-                self.plasticity_resources -= depletion
-                self.plasticity_resources.clamp_(min=0.0)
+            weight_change = torch.abs(self.threshold_weights.data - self._prev_threshold_weights)
+            depletion = self.depletion_rate * weight_change
+            self.threshold_resources -= depletion
+            self.threshold_resources.clamp_(min=0.0)
+            self._prev_threshold_weights = self.threshold_weights.data.clone()
 
-            if self.thresholds.grad is not None:
-                depletion = self.depletion_rate * torch.abs(self.thresholds.grad)
-                self.threshold_param_resources -= depletion
-                self.threshold_param_resources.clamp_(min=0.0)
+            weight_change = torch.abs(self.plasticity_weights.data - self._prev_plasticity_weights)
+            depletion = self.depletion_rate * weight_change
+            self.plasticity_resources -= depletion
+            self.plasticity_resources.clamp_(min=0.0)
+            self._prev_plasticity_weights = self.plasticity_weights.data.clone()
+
+            weight_change = torch.abs(self.thresholds.data - self._prev_thresholds)
+            depletion = self.depletion_rate * weight_change
+            self.threshold_param_resources -= depletion
+            self.threshold_param_resources.clamp_(min=0.0)
+            self._prev_thresholds = self.thresholds.data.clone()
 
     def recover_resources(self):
         """
