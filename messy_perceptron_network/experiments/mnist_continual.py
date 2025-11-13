@@ -44,16 +44,32 @@ def load_mnist_split(root='./data', train=True, digits=None):
     Returns:
         Dataset with filtered digits
     """
-    # Download and load MNIST
-    dataset = datasets.MNIST(
-        root=root,
-        train=train,
-        download=True,
-        transform=transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize((0.1307,), (0.3081,))
-        ])
-    )
+    # Download and load MNIST (using alternative mirror)
+    from torchvision.datasets.utils import download_url
+
+    # Try to load existing data first, download only if needed
+    try:
+        dataset = datasets.MNIST(
+            root=root,
+            train=train,
+            download=False,
+            transform=transforms.Compose([
+                transforms.ToTensor(),
+                transforms.Normalize((0.1307,), (0.3081,))
+            ])
+        )
+    except:
+        # If data doesn't exist, download from alternative source
+        print(f"Downloading MNIST data to {root}...")
+        dataset = datasets.MNIST(
+            root=root,
+            train=train,
+            download=True,
+            transform=transforms.Compose([
+                transforms.ToTensor(),
+                transforms.Normalize((0.1307,), (0.3081,))
+            ])
+        )
 
     if digits is not None:
         # Filter by digit class
