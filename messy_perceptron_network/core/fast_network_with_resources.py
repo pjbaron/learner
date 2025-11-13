@@ -196,23 +196,46 @@ class FastMessyPerceptronNetworkWithResources(nn.Module):
         else:
             return outputs
 
-    def apply_plasticity_resources(self):
+    def apply_plasticity_resources(self, binary_threshold=0.5):
         """
         Apply plasticity resources to gradients.
 
         Call this AFTER loss.backward() but BEFORE optimizer.step()
+
+        Args:
+            binary_threshold: If > 0, use binary gating (resource < threshold → grad = 0)
+                            If 0, use linear scaling (grad *= resource)
         """
-        if self.signal_weights.grad is not None:
-            self.signal_weights.grad *= self.signal_resources
+        if binary_threshold > 0:
+            # Binary gating: freeze weights below threshold, keep others plastic
+            if self.signal_weights.grad is not None:
+                mask = (self.signal_resources >= binary_threshold).float()
+                self.signal_weights.grad *= mask
 
-        if self.threshold_weights.grad is not None:
-            self.threshold_weights.grad *= self.threshold_resources
+            if self.threshold_weights.grad is not None:
+                mask = (self.threshold_resources >= binary_threshold).float()
+                self.threshold_weights.grad *= mask
 
-        if self.plasticity_weights.grad is not None:
-            self.plasticity_weights.grad *= self.plasticity_resources
+            if self.plasticity_weights.grad is not None:
+                mask = (self.plasticity_resources >= binary_threshold).float()
+                self.plasticity_weights.grad *= mask
 
-        if self.thresholds.grad is not None:
-            self.thresholds.grad *= self.threshold_param_resources
+            if self.thresholds.grad is not None:
+                mask = (self.threshold_param_resources >= binary_threshold).float()
+                self.thresholds.grad *= mask
+        else:
+            # Linear scaling (original behavior)
+            if self.signal_weights.grad is not None:
+                self.signal_weights.grad *= self.signal_resources
+
+            if self.threshold_weights.grad is not None:
+                self.threshold_weights.grad *= self.threshold_resources
+
+            if self.plasticity_weights.grad is not None:
+                self.plasticity_weights.grad *= self.plasticity_resources
+
+            if self.thresholds.grad is not None:
+                self.thresholds.grad *= self.threshold_param_resources
 
     def deplete_resources(self, learning_rate):
         """
