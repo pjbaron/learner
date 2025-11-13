@@ -141,12 +141,57 @@ class MessyGraphGenerator:
         """
         Add random connections to reach target average degree.
 
-        Includes backward edges to create loops of various lengths.
+        Explicitly creates backward edges at various distances to form multi-timescale loops:
+        - Short loops (2-5 steps): 40% of connections - fast learning
+        - Medium loops (6-15 steps): 40% of connections - intermediate
+        - Long loops (16-30+ steps): 20% of connections - slow consolidation
         """
         edge_set = set(backbone_edges)
         target_total = int(self.n_perceptrons * self.avg_degree)
+        remaining = target_total - len(edge_set)
 
-        # Add random edges until we reach target
+        # Allocate connections to different loop categories
+        n_short = int(remaining * 0.4)  # Short loops (2-5 backward)
+        n_medium = int(remaining * 0.4)  # Medium loops (6-15 backward)
+        n_long = remaining - n_short - n_medium  # Long loops (16+ backward)
+
+        # Add short backward connections (creates loops of length 2-5)
+        added = 0
+        attempts = 0
+        while added < n_short and attempts < n_short * 10:
+            src = random.randint(5, self.n_perceptrons - 1)
+            # Connect backward by 2-5 steps
+            dst = src - random.randint(2, min(5, src))
+            if dst >= 0 and (src, dst) not in edge_set:
+                edge_set.add((src, dst))
+                added += 1
+            attempts += 1
+
+        # Add medium backward connections (creates loops of length 6-15)
+        added = 0
+        attempts = 0
+        while added < n_medium and attempts < n_medium * 10:
+            src = random.randint(15, self.n_perceptrons - 1)
+            # Connect backward by 6-15 steps
+            dst = src - random.randint(6, min(15, src))
+            if dst >= 0 and (src, dst) not in edge_set:
+                edge_set.add((src, dst))
+                added += 1
+            attempts += 1
+
+        # Add long backward connections (creates loops of length 16-30+)
+        added = 0
+        attempts = 0
+        while added < n_long and attempts < n_long * 10:
+            src = random.randint(30, self.n_perceptrons - 1)
+            # Connect backward by 16-30 steps
+            dst = src - random.randint(16, min(30, src))
+            if dst >= 0 and (src, dst) not in edge_set:
+                edge_set.add((src, dst))
+                added += 1
+            attempts += 1
+
+        # Fill remaining with random connections
         while len(edge_set) < target_total:
             src = random.randint(0, self.n_perceptrons - 1)
             valid_targets = self._get_valid_targets(src)
@@ -156,7 +201,6 @@ class MessyGraphGenerator:
 
             dst = random.choice(valid_targets)
 
-            # Add the edge if it doesn't exist
             if (src, dst) not in edge_set:
                 edge_set.add((src, dst))
 
