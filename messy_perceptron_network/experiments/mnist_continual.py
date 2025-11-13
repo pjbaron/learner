@@ -26,10 +26,10 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from messy_perceptron_network import (
-    MessyPerceptronNetwork,
     MessyPerceptronTrainer,
     ContinualLearner,
 )
+from messy_perceptron_network.core.fast_network import FastMessyPerceptronNetwork
 
 
 def load_mnist_split(root='./data', train=True, digits=None):
@@ -356,8 +356,8 @@ def run_continual_learning_experiment(
     print(f"  Device: {device}\n")
 
     # Create network
-    print("Creating messy perceptron network...")
-    network = MessyPerceptronNetwork(
+    print("Creating fast messy perceptron network...")
+    network = FastMessyPerceptronNetwork(
         n_perceptrons=n_perceptrons,
         avg_degree=avg_degree,
         n_input_perceptrons=200,  # Subset of 784 MNIST pixels
