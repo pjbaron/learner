@@ -178,18 +178,36 @@ class FastMessyPerceptronNetwork(nn.Module):
         input_drive = torch.zeros(batch_size, self.n_perceptrons, device=device)
         input_drive[:, self.input_perceptron_indices] = inputs[:, :self.n_input_perceptrons] * 10.0
 
+        # Compute plasticity modulation ONCE at start (simpler, allows gradients to flow)
+        # Initialize with small random activations to bootstrap
+        bootstrap_activations = torch.randn_like(activations) * 0.1
+        plasticity_input = torch.sparse.mm(plasticity_adj, bootstrap_activations.t()).t()
+        plasticity_rates = torch.sigmoid(plasticity_input)  # (batch, n_perceptrons)
+
+        # Average across batch and expand for broadcasting
+        avg_plasticity = plasticity_rates.mean(dim=0)  # (n_perceptrons,)
+
+        # CRITICAL: Apply plasticity modulation to connection weights IN THE FORWARD PASS
+        # This allows gradients to flow to both signal_weights AND plasticity_weights!
+        target_indices = self.signal_indices[1]  # Target perceptron for each connection
+        plasticity_mask = avg_plasticity[target_indices]  # (n_connections,)
+        modulated_signal_weights = self.signal_weights * plasticity_mask
+
+        # Rebuild signal matrix with modulated weights
+        signal_adj = torch.sparse_coo_tensor(
+            self.signal_indices.to(device),
+            modulated_signal_weights,
+            (self.n_perceptrons, self.n_perceptrons),
+            device=device
+        )
+
         # Settling iterations
         for iteration in range(self.settling_iterations):
-            # Signal inputs: z = Σ(w_signal × a)
+            # Signal inputs with MODULATED weights: z = Σ((w_signal × α) × a)
             z = torch.sparse.mm(signal_adj, activations.t()).t()
 
             # Threshold modulation: Δθ = Σ(w_threshold × a)
             delta_theta = torch.sparse.mm(threshold_adj, activations.t()).t()
-
-            # Plasticity modulation: α = sigmoid(Σ(w_plasticity × a))
-            # This is the KEY innovation - plasticity driven by activations!
-            plasticity_input = torch.sparse.mm(plasticity_adj, activations.t()).t()
-            plasticity_rates = torch.sigmoid(plasticity_input)  # (batch, n_perceptrons)
 
             # Compute effective threshold
             effective_thresholds = self.thresholds.unsqueeze(0) + delta_theta
@@ -200,9 +218,8 @@ class FastMessyPerceptronNetwork(nn.Module):
             if return_history:
                 activation_history.append(activations.clone())
 
-        # Store average plasticity rates across batch (for gradient scaling)
-        # Note: We average across batch dimension for simplicity
-        self.plasticity_rates = plasticity_rates.mean(dim=0).detach()
+        # Store plasticity rates for monitoring (detach since we don't need gradients to flow through this)
+        self.plasticity_rates = avg_plasticity.detach()
 
         # Extract outputs
         outputs = activations[:, self.output_perceptron_indices]
@@ -214,35 +231,13 @@ class FastMessyPerceptronNetwork(nn.Module):
 
     def apply_plasticity_modulation(self):
         """
-        Apply activation-driven plasticity modulation to gradients.
+        Placeholder - plasticity modulation now happens in forward pass.
 
-        Call this AFTER loss.backward() but BEFORE optimizer.step().
-
-        Uses plasticity rates (α) computed during forward pass to scale gradients.
-        This implements: effective_lr = base_lr × α
+        Kept for compatibility with trainer, but does nothing.
+        Plasticity is applied by scaling weights: effective_w = w × α
+        Gradients automatically flow to both signal_weights and plasticity_weights.
         """
-        # Scale signal connection gradients
-        if self.signal_weights.grad is not None:
-            # Each connection's gradient is scaled by TARGET perceptron's plasticity rate
-            target_indices = self.signal_indices[1]  # Target perceptrons
-            plasticity_mask = self.plasticity_rates[target_indices]
-            self.signal_weights.grad *= plasticity_mask
-
-        # Scale threshold modulation gradients
-        if self.threshold_weights.grad is not None:
-            target_indices = self.threshold_indices[1]
-            plasticity_mask = self.plasticity_rates[target_indices]
-            self.threshold_weights.grad *= plasticity_mask
-
-        # Scale plasticity modulation gradients (meta-learning!)
-        if self.plasticity_weights.grad is not None:
-            target_indices = self.plasticity_indices[1]
-            plasticity_mask = self.plasticity_rates[target_indices]
-            self.plasticity_weights.grad *= plasticity_mask
-
-        # Scale threshold parameter gradients
-        if self.thresholds.grad is not None:
-            self.thresholds.grad *= self.plasticity_rates
+        pass  # No-op: plasticity applied in forward pass
 
     def get_plasticity_stats(self):
         """Get statistics about current plasticity rates."""
