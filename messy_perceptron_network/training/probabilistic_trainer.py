@@ -28,8 +28,9 @@ class ProbabilisticResourceTrainer:
                  optimizer: torch.optim.Optimizer,
                  criterion: nn.Module = None,
                  initial_resource: float = 1.0,
-                 depletion_rate: float = 0.1,
-                 recovery_rate: float = 0.01,
+                 consumption_amount: float = 0.01,
+                 significance_threshold: float = 0.001,
+                 recovery_rate: float = 0.005,
                  gradient_clip_norm: float = 1.0,
                  device: str = 'cpu'):
         """
@@ -40,8 +41,9 @@ class ProbabilisticResourceTrainer:
             optimizer: Optimizer for parameters
             criterion: Loss function
             initial_resource: Starting resource level X (default: 1.0)
-            depletion_rate: How much resource consumed per update
-            recovery_rate: How much resource recovers per step
+            consumption_amount: Fixed amount consumed per significant update (default: 0.01)
+            significance_threshold: Gradient threshold for "significant" update (default: 0.001)
+            recovery_rate: How much resource recovers per step (default: 0.005)
             gradient_clip_norm: Max gradient norm
             device: Device to train on
         """
@@ -54,7 +56,8 @@ class ProbabilisticResourceTrainer:
 
         # Resource tracking
         self.initial_resource = initial_resource
-        self.depletion_rate = depletion_rate
+        self.consumption_amount = consumption_amount
+        self.significance_threshold = significance_threshold
         self.recovery_rate = recovery_rate
 
         # Initialize resources for each parameter
@@ -146,12 +149,19 @@ class ProbabilisticResourceTrainer:
                 param.grad *= update_mask
 
     def _deplete_resources(self):
-        """Deplete resources for parameters that just updated."""
+        """
+        Deplete resources for parameters with significant gradients.
+
+        Fixed consumption (0.01) only if gradient > threshold.
+        This prevents uniform depletion and targets oscillatory parameters.
+        """
         with torch.no_grad():
             for name, param in self.network.named_parameters():
                 if param.grad is not None and name in self.param_resources:
-                    # Deplete proportional to gradient magnitude
-                    depletion = self.depletion_rate * param.grad.abs()
+                    # Only deplete if gradient is significant (parameter being actively changed)
+                    significant_mask = (param.grad.abs() > self.significance_threshold).float()
+                    depletion = self.consumption_amount * significant_mask
+
                     self.param_resources[name] -= depletion
                     self.param_resources[name].clamp_(min=0.0)
 

@@ -61,15 +61,17 @@ def run_continual_learning_probabilistic(
     batch_size=64,
     base_lr=0.001,
     initial_resource=1.0,
-    depletion_rate=0.05,
-    recovery_rate=0.01,
+    consumption_amount=0.01,
+    significance_threshold=0.001,
+    recovery_rate=0.005,
     device='cpu',
     seed=42
 ):
     """
     Run continual learning with probabilistic resource-based updates.
 
-    Goal: Stabilize training, prevent oscillations, naturally consolidate shared features.
+    Goal: Prevent oscillatory traps where contradictory gradients flip weights.
+    Only deplete resources for parameters with significant gradients.
     """
     print("\n" + "="*70)
     print("MNIST Continual Learning with Probabilistic Resources")
@@ -81,7 +83,8 @@ def run_continual_learning_probabilistic(
     print(f"  Batch size: {batch_size}")
     print(f"  Learning rate: {base_lr}")
     print(f"  Initial resource: {initial_resource}")
-    print(f"  Depletion rate: {depletion_rate}")
+    print(f"  Consumption (per significant update): {consumption_amount}")
+    print(f"  Significance threshold: {significance_threshold}")
     print(f"  Recovery rate: {recovery_rate}")
     print(f"  Device: {device}\n")
 
@@ -104,7 +107,8 @@ def run_continual_learning_probabilistic(
         network=classifier,
         optimizer=optimizer,
         initial_resource=initial_resource,
-        depletion_rate=depletion_rate,
+        consumption_amount=consumption_amount,
+        significance_threshold=significance_threshold,
         recovery_rate=recovery_rate,
         device=device
     )
@@ -201,8 +205,9 @@ if __name__ == "__main__":
         batch_size=64,
         base_lr=0.001,
         initial_resource=1.0,
-        depletion_rate=0.05,  # Moderate depletion
-        recovery_rate=0.01,   # Slow recovery
+        consumption_amount=0.01,      # Fixed small consumption
+        significance_threshold=0.001, # Only deplete if gradient significant
+        recovery_rate=0.005,          # Slow recovery
         device=device,
         seed=42
     )
