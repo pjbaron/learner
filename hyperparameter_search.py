@@ -132,9 +132,10 @@ def hyperparameter_search():
     print("="*70)
 
     # Define search grid (from gradient analysis: mean ~0.0005, max ~0.005)
-    thresholds = [0.0001, 0.0003, 0.0005, 0.001]
-    consumptions = [0.01, 0.03, 0.05, 0.1]
-    recovery_rates = [0.001, 0.003, 0.005]
+    # Reduced grid for faster results
+    thresholds = [0.0001, 0.0005, 0.001]
+    consumptions = [0.01, 0.05, 0.1]
+    recovery_rates = [0.001, 0.005]
 
     results = []
     total_experiments = len(thresholds) * len(consumptions) * len(recovery_rates)
@@ -149,7 +150,7 @@ def hyperparameter_search():
                 experiment_num += 1
 
                 print(f"[{experiment_num}/{total_experiments}] Testing: "
-                      f"threshold={threshold:.4f}, consumption={consumption:.2f}, recovery={recovery:.3f}")
+                      f"threshold={threshold:.4f}, consumption={consumption:.2f}, recovery={recovery:.3f}", flush=True)
 
                 try:
                     metrics = run_single_experiment(
@@ -169,7 +170,7 @@ def hyperparameter_search():
 
                     print(f"  → Forgetting: {metrics['forgetting_pct']:.1f}%, "
                           f"Task1: {metrics['task_1_initial']:.3f}→{metrics['task_1_after_task_2']:.3f}, "
-                          f"Resources: {metrics['resource_mean_task2']:.3f} (min: {metrics['resource_min_task2']:.3f})")
+                          f"Resources: {metrics['resource_mean_task2']:.3f} (min: {metrics['resource_min_task2']:.3f})", flush=True)
 
                 except Exception as e:
                     print(f"  → ERROR: {e}")
