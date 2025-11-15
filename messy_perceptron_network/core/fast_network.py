@@ -65,12 +65,12 @@ class FastMessyPerceptronNetwork(nn.Module):
         # Build sparse adjacency matrices and weight parameters
         self._build_matrices(edges)
 
-        # Randomly select input and output perceptrons
+        # Randomly select input and output perceptrons (non-overlapping)
         all_indices = list(range(n_perceptrons))
         np.random.shuffle(all_indices)
 
         self.input_perceptron_indices = torch.tensor(all_indices[:n_input_perceptrons], dtype=torch.long)
-        self.output_perceptron_indices = torch.tensor(all_indices[:n_output_perceptrons], dtype=torch.long)
+        self.output_perceptron_indices = torch.tensor(all_indices[n_input_perceptrons:n_input_perceptrons+n_output_perceptrons], dtype=torch.long)
 
         print(f"Network created: {n_perceptrons} perceptrons, "
               f"{len(edges['signal']) + len(edges['threshold_mod']) + len(edges['plasticity_mod'])} connections")

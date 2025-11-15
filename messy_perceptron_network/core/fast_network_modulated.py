@@ -71,11 +71,11 @@ class FastMessyPerceptronNetwork(nn.Module):
         # Build sparse matrices for each connection type
         self._build_matrices(edges)
 
-        # Select input/output perceptrons (random subsets)
+        # Select input/output perceptrons (random subsets, non-overlapping)
         all_indices = list(range(n_perceptrons))
         np.random.shuffle(all_indices)
         self.input_perceptron_indices = torch.tensor(all_indices[:n_input_perceptrons], dtype=torch.long)
-        self.output_perceptron_indices = torch.tensor(all_indices[:n_output_perceptrons], dtype=torch.long)
+        self.output_perceptron_indices = torch.tensor(all_indices[n_input_perceptrons:n_input_perceptrons+n_output_perceptrons], dtype=torch.long)
 
         # Storage for per-perceptron plasticity rates (computed during forward pass)
         self.register_buffer('plasticity_rates', torch.ones(n_perceptrons) * default_plasticity)
