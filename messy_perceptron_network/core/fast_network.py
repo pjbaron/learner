@@ -25,7 +25,7 @@ class FastMessyPerceptronNetwork(nn.Module):
                  avg_degree=30,
                  n_input_perceptrons=200,
                  n_output_perceptrons=200,
-                 settling_iterations=7,
+                 settling_iterations=60,
                  beta=0.9,
                  default_plasticity=0.5,
                  seed=None):
@@ -37,7 +37,7 @@ class FastMessyPerceptronNetwork(nn.Module):
             avg_degree: Average connections per perceptron (default: 30)
             n_input_perceptrons: Number of perceptrons that receive external input (default: 200)
             n_output_perceptrons: Number of perceptrons that provide output (default: 200)
-            settling_iterations: Number of iterations for activation settling (default: 7)
+            settling_iterations: Number of iterations for activation settling (default: 60, covers longest recurrent paths)
             beta: EMA decay rate for activation history (default: 0.9)
             default_plasticity: Default plasticity rate (default: 0.5)
             seed: Random seed for reproducibility
