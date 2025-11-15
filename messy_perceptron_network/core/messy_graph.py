@@ -1,11 +1,11 @@
 """
 Messy graph generator for the perceptron network.
 
-Creates a weakly-connected directed graph with:
-- Variable loop lengths (2 to 30+ steps)
+Creates a deep recurrent graph with:
+- 20-30 depth levels from input to output
+- Forward connections advancing through depth levels
+- Backward recurrent loops jumping back through levels
 - Three types of connections (signal, threshold modulation, plasticity modulation)
-- No prescribed layers or hierarchy
-- Optional distance constraints
 """
 
 import numpy as np
@@ -15,23 +15,24 @@ from typing import List, Tuple, Optional, Dict
 
 class MessyGraphGenerator:
     """
-    Generates messy recurrent graphs for the perceptron network.
+    Generates deep messy recurrent graphs for the perceptron network.
 
     The graph has:
-    - n_perceptrons nodes
+    - n_perceptrons nodes assigned to ~30 depth levels
+    - Forward connections advancing through levels
+    - Backward recurrent loops for multi-timescale learning
     - ~avg_degree edges per node on average
     - 80% signal, 15% threshold modulation, 5% plasticity modulation connections
-    - Variable loop lengths from 2 to 30+ steps
-    - Weak connectivity (all nodes can influence each other through some path)
     """
 
     def __init__(self,
                  n_perceptrons=2000,
                  avg_degree=30,
+                 n_input_perceptrons=250,
+                 n_output_perceptrons=125,
                  signal_ratio=0.80,
                  threshold_mod_ratio=0.15,
                  plasticity_mod_ratio=0.05,
-                 distance_constraint=None,
                  seed=None):
         """
         Initialize the messy graph generator.
@@ -39,18 +40,20 @@ class MessyGraphGenerator:
         Args:
             n_perceptrons: Number of perceptrons in the network (default: 2000)
             avg_degree: Average number of outgoing connections per perceptron (default: 30)
+            n_input_perceptrons: Number of input neurons (default: 250)
+            n_output_perceptrons: Number of output neurons (default: 125)
             signal_ratio: Proportion of signal connections (default: 0.80)
             threshold_mod_ratio: Proportion of threshold modulation connections (default: 0.15)
             plasticity_mod_ratio: Proportion of plasticity modulation connections (default: 0.05)
-            distance_constraint: Optional maximum distance for connections (default: None)
             seed: Random seed for reproducibility (default: None)
         """
         self.n_perceptrons = n_perceptrons
         self.avg_degree = avg_degree
+        self.n_input_perceptrons = n_input_perceptrons
+        self.n_output_perceptrons = n_output_perceptrons
         self.signal_ratio = signal_ratio
         self.threshold_mod_ratio = threshold_mod_ratio
         self.plasticity_mod_ratio = plasticity_mod_ratio
-        self.distance_constraint = distance_constraint
 
         if seed is not None:
             random.seed(seed)
@@ -61,9 +64,16 @@ class MessyGraphGenerator:
         if not np.isclose(total_ratio, 1.0):
             raise ValueError(f"Connection type ratios must sum to 1.0, got {total_ratio}")
 
+        # Will be computed during generation
+        self.neuron_distances = None  # Distance from each neuron to nearest output
+        self.input_indices = None
+        self.output_indices = None
+
     def generate(self) -> Dict[str, List[Tuple[int, int]]]:
         """
-        Generate a messy graph with three connection types.
+        Generate a deep messy graph with emergent layer structure.
+
+        Uses distance-to-output to create natural depth without explicit layers.
 
         Returns:
             Dictionary with keys 'signal', 'threshold_mod', 'plasticity_mod',
@@ -75,136 +85,228 @@ class MessyGraphGenerator:
             'plasticity_mod': []
         }
 
-        # Step 1: Create backbone for weak connectivity
-        # This ensures all perceptrons can influence each other through some path
-        backbone_edges = self._create_backbone()
+        # Step 1: Randomly select output neurons
+        self.output_indices = random.sample(range(self.n_perceptrons), self.n_output_perceptrons)
 
-        # Step 2: Add random connections including backward edges (creates loops)
-        all_edges = self._add_random_connections(backbone_edges)
+        # Step 2: Build initial random connectivity to establish graph structure
+        print("Building initial connectivity...")
+        initial_edges = self._build_initial_connectivity()
 
-        # Step 3: Assign connection types to edges
+        # Step 3: Compute distance-to-output for all neurons
+        print("Computing distance-to-output for all neurons...")
+        self.neuron_distances = self._compute_distances_to_outputs(initial_edges)
+
+        # Step 4: Select inputs from neurons furthest from outputs
+        self._select_input_neurons()
+
+        # Step 5: Rebuild connections based on distance-to-output
+        print("Rebuilding connections based on computed distances...")
+        all_edges = self._build_distance_based_connections()
+
+        # Step 6: Assign connection types to edges
         edges = self._assign_connection_types(all_edges)
 
-        # Step 4: Verify graph properties
+        # Step 7: Verify graph properties
         self._verify_graph(edges)
 
         return edges
 
-    def _create_backbone(self) -> List[Tuple[int, int]]:
+    def _build_initial_connectivity(self) -> List[Tuple[int, int]]:
         """
-        Create a backbone structure to ensure weak connectivity.
+        Build initial connectivity with strong forward bias to create depth.
 
-        Creates a forward chain plus some random forward connections.
+        Creates a sequential chain-like structure with skip connections
+        to establish deep paths from inputs to outputs.
         """
-        backbone = []
+        edges = []
 
-        # Forward chain: 0->1->2->...->n-1
-        for i in range(self.n_perceptrons - 1):
-            backbone.append((i, i + 1))
+        # Assign temporary positions to neurons (outputs at start for backwards BFS)
+        # Shuffle non-output neurons to randomize which become deep vs shallow
+        non_output_indices = [i for i in range(self.n_perceptrons) if i not in self.output_indices]
+        random.shuffle(non_output_indices)
 
-        # Add some random forward connections to strengthen connectivity
-        n_extra_backbone = self.n_perceptrons // 10
-        for _ in range(n_extra_backbone):
-            src = random.randint(0, self.n_perceptrons - 2)
-            # Connect to a node further ahead (if possible)
-            min_dst = src + 2
-            max_dst = min(src + 20, self.n_perceptrons - 1)
-            if min_dst <= max_dst:  # Only create connection if valid range exists
-                dst = random.randint(min_dst, max_dst)
-                if (src, dst) not in backbone:
-                    backbone.append((src, dst))
+        # Build sequential chain from outputs backwards
+        # This ensures outputs are reachable and creates depth
+        for i in range(len(non_output_indices) - 1):
+            src = non_output_indices[i]
+            dst = non_output_indices[i + 1]
+            edges.append((src, dst))
 
-        return backbone
+        # Connect chain to outputs
+        for _ in range(100):  # Multiple connections to outputs
+            src = random.choice(non_output_indices[:50])  # From early in chain
+            dst = random.choice(self.output_indices)
+            if (src, dst) not in edges:
+                edges.append((src, dst))
 
-    def _get_valid_targets(self, src: int) -> List[int]:
+        # Add skip connections (forward jumps of varying lengths)
+        target_edges = int(self.n_perceptrons * self.avg_degree)
+        while len(edges) < target_edges:
+            # Pick from non-outputs
+            src_idx = random.randint(50, len(non_output_indices) - 1)
+            # Jump forward toward outputs (smaller index = closer to output)
+            jump = random.randint(1, min(50, src_idx))
+            dst_idx = src_idx - jump
+
+            if dst_idx >= 0:
+                if dst_idx < len(non_output_indices):
+                    src = non_output_indices[src_idx]
+                    dst = non_output_indices[dst_idx]
+                else:
+                    # Jump to output
+                    src = non_output_indices[src_idx]
+                    dst = random.choice(self.output_indices)
+
+                if src != dst and (src, dst) not in edges:
+                    edges.append((src, dst))
+
+        return edges
+
+    def _compute_distances_to_outputs(self, edges: List[Tuple[int, int]]) -> np.ndarray:
         """
-        Get valid target nodes for a given source node.
+        Compute shortest distance from each neuron to nearest output neuron.
 
-        Applies distance constraint if specified.
-        """
-        if self.distance_constraint is None:
-            # All other nodes are valid targets
-            valid = list(range(self.n_perceptrons))
-            valid.remove(src)  # No self-loops
-            return valid
-        else:
-            # Only nodes within distance constraint
-            valid = []
-            for dst in range(self.n_perceptrons):
-                if dst != src:  # No self-loops
-                    distance = abs(dst - src)
-                    if distance <= self.distance_constraint:
-                        valid.append(dst)
-            return valid
+        Uses BFS backwards from outputs through reversed edges.
 
-    def _add_random_connections(self, backbone_edges: List[Tuple[int, int]]) -> List[Tuple[int, int]]:
+        Returns:
+            Array of distances (or np.inf if unreachable)
         """
-        Add random connections to reach target average degree.
+        from collections import deque
 
-        Explicitly creates backward edges at various distances to form multi-timescale loops:
-        - Short loops (2-5 steps): 40% of connections - fast learning
-        - Medium loops (6-15 steps): 40% of connections - intermediate
-        - Long loops (16-30+ steps): 20% of connections - slow consolidation
+        # Build reverse adjacency list (backwards from outputs)
+        reverse_adj = {i: [] for i in range(self.n_perceptrons)}
+        for src, dst in edges:
+            reverse_adj[dst].append(src)  # Reverse direction
+
+        # BFS from all outputs simultaneously
+        distances = np.full(self.n_perceptrons, np.inf)
+        queue = deque()
+
+        for output_idx in self.output_indices:
+            distances[output_idx] = 0
+            queue.append((output_idx, 0))
+
+        visited = set(self.output_indices)
+
+        while queue:
+            node, dist = queue.popleft()
+
+            for predecessor in reverse_adj[node]:
+                if predecessor not in visited:
+                    visited.add(predecessor)
+                    distances[predecessor] = dist + 1
+                    queue.append((predecessor, dist + 1))
+
+        return distances
+
+    def _select_input_neurons(self):
         """
-        edge_set = set(backbone_edges)
+        Select input neurons from those at distance 20-30 from outputs.
+
+        Targets the "sweet spot" for 20-30 hop paths to outputs.
+        """
+        # Get neurons at target distance range
+        target_distances = list(range(20, 31))  # 20-30 hops from output
+        candidates = [i for i in range(self.n_perceptrons)
+                     if i not in self.output_indices and
+                     int(self.neuron_distances[i]) in target_distances]
+
+        # If not enough candidates in target range, expand search
+        if len(candidates) < self.n_input_perceptrons:
+            print(f"  Warning: Only {len(candidates)} neurons at distance 20-30, expanding search...")
+            candidates = [i for i in range(self.n_perceptrons)
+                         if i not in self.output_indices and
+                         self.neuron_distances[i] >= 15]
+
+        # Shuffle and take required number
+        random.shuffle(candidates)
+        self.input_indices = candidates[:self.n_input_perceptrons]
+
+        avg_input_dist = np.mean([self.neuron_distances[i] for i in self.input_indices])
+        print(f"Selected inputs with average distance-to-output: {avg_input_dist:.1f}")
+
+    def _build_distance_based_connections(self) -> List[Tuple[int, int]]:
+        """
+        Build connections based on distance-to-output.
+
+        Forward connections: src_distance > dst_distance (moving toward outputs)
+        Backward loops: src_distance < dst_distance (recurrent, away from outputs)
+
+        Creates ~60% forward, ~40% backward to maintain recurrence.
+        """
+        # Pre-compute neurons at each distance for efficient lookup
+        distance_bins = {}
+        for neuron_idx in range(self.n_perceptrons):
+            dist = int(self.neuron_distances[neuron_idx])
+            if not np.isinf(dist):
+                if dist not in distance_bins:
+                    distance_bins[dist] = []
+                distance_bins[dist].append(neuron_idx)
+
+        max_dist = max(distance_bins.keys()) if distance_bins else 0
+        print(f"  Distance range: 0 to {max_dist} hops")
+
+        edges = set()
         target_total = int(self.n_perceptrons * self.avg_degree)
-        remaining = target_total - len(edge_set)
 
-        # Allocate connections to different loop categories
-        n_short = int(remaining * 0.4)  # Short loops (2-5 backward)
-        n_medium = int(remaining * 0.4)  # Medium loops (6-15 backward)
-        n_long = remaining - n_short - n_medium  # Long loops (16+ backward)
+        # 60% forward (toward outputs - decreasing distance)
+        n_forward = int(target_total * 0.6)
 
-        # Add short backward connections (creates loops of length 2-5)
-        added = 0
-        attempts = 0
-        while added < n_short and attempts < n_short * 10:
-            src = random.randint(5, self.n_perceptrons - 1)
-            # Connect backward by 2-5 steps
-            dst = src - random.randint(2, min(5, src))
-            if dst >= 0 and (src, dst) not in edge_set:
-                edge_set.add((src, dst))
-                added += 1
-            attempts += 1
+        for _ in range(n_forward * 2):  # Extra attempts
+            if len(edges) >= n_forward:
+                break
 
-        # Add medium backward connections (creates loops of length 6-15)
-        added = 0
-        attempts = 0
-        while added < n_medium and attempts < n_medium * 10:
-            src = random.randint(15, self.n_perceptrons - 1)
-            # Connect backward by 6-15 steps
-            dst = src - random.randint(6, min(15, src))
-            if dst >= 0 and (src, dst) not in edge_set:
-                edge_set.add((src, dst))
-                added += 1
-            attempts += 1
-
-        # Add long backward connections (creates loops of length 16-30+)
-        added = 0
-        attempts = 0
-        while added < n_long and attempts < n_long * 10:
-            src = random.randint(30, self.n_perceptrons - 1)
-            # Connect backward by 16-30 steps
-            dst = src - random.randint(16, min(30, src))
-            if dst >= 0 and (src, dst) not in edge_set:
-                edge_set.add((src, dst))
-                added += 1
-            attempts += 1
-
-        # Fill remaining with random connections
-        while len(edge_set) < target_total:
-            src = random.randint(0, self.n_perceptrons - 1)
-            valid_targets = self._get_valid_targets(src)
-
-            if len(valid_targets) == 0:
+            # Pick source from mid-to-high distance
+            src_dist = random.randint(1, max_dist)
+            if src_dist not in distance_bins:
                 continue
 
-            dst = random.choice(valid_targets)
+            src = random.choice(distance_bins[src_dist])
 
-            if (src, dst) not in edge_set:
-                edge_set.add((src, dst))
+            # Connect forward (decrease distance by 1-2 hops)
+            # Mostly 1-hop (deep paths) with some 2-hop (shortcuts) for variety
+            advance = 1 if random.random() < 0.9 else 2  # 90% single-hop, 10% double-hop
+            dst_dist = max(0, src_dist - advance)
+            if dst_dist not in distance_bins:
+                continue
 
-        return list(edge_set)
+            dst = random.choice(distance_bins[dst_dist])
+
+            if src != dst:
+                edges.add((src, dst))
+
+        # 40% backward (away from outputs - increasing distance)
+        n_backward = target_total - len(edges)
+
+        for _ in range(n_backward * 2):  # Extra attempts
+            if len(edges) >= target_total:
+                break
+
+            # Pick source from low-to-mid distance
+            src_dist = random.randint(0, max(1, max_dist - 5))
+            if src_dist not in distance_bins:
+                continue
+
+            src = random.choice(distance_bins[src_dist])
+
+            # Jump back 2-25 hops (recurrent loop)
+            jump_back = random.choice([
+                random.randint(2, 5),    # Short loops (more common)
+                random.randint(6, 15),   # Medium loops
+                random.randint(16, 25)   # Long loops (less common)
+            ])
+
+            dst_dist = min(max_dist, src_dist + jump_back)
+            if dst_dist not in distance_bins:
+                continue
+
+            dst = random.choice(distance_bins[dst_dist])
+
+            if src != dst:
+                edges.add((src, dst))
+
+        print(f"  Built {len(edges)} distance-based connections")
+        return list(edges)
 
     def _assign_connection_types(self, edges: List[Tuple[int, int]]) -> Dict[str, List[Tuple[int, int]]]:
         """
@@ -237,12 +339,13 @@ class MessyGraphGenerator:
         - Total number of edges is approximately correct
         - Connection type ratios are approximately correct
         - No duplicate edges
+        - Forward/backward distribution based on distance-to-output
         """
         total_edges = sum(len(edges[key]) for key in edges)
         expected_edges = int(self.n_perceptrons * self.avg_degree)
 
-        # Check total edges (allow 5% tolerance)
-        if abs(total_edges - expected_edges) > expected_edges * 0.05:
+        # Check total edges (allow 15% tolerance for distance-based generation)
+        if abs(total_edges - expected_edges) > expected_edges * 0.15:
             print(f"Warning: Expected ~{expected_edges} edges, got {total_edges}")
 
         # Check for duplicate edges
@@ -253,8 +356,34 @@ class MessyGraphGenerator:
         if len(all_edges) != len(set(all_edges)):
             print("Warning: Duplicate edges detected")
 
+        # Analyze distance-based characteristics
+        forward_count = 0  # Toward outputs (decreasing distance)
+        backward_count = 0  # Away from outputs (increasing distance)
+        lateral_count = 0   # Same distance
+
+        for src, dst in all_edges:
+            src_dist = self.neuron_distances[src]
+            dst_dist = self.neuron_distances[dst]
+
+            if src_dist > dst_dist:  # Moving closer to output
+                forward_count += 1
+            elif src_dist < dst_dist:  # Moving away from output (recurrent)
+                backward_count += 1
+            else:
+                lateral_count += 1
+
+        # Compute distance statistics
+        input_dists = [self.neuron_distances[i] for i in self.input_indices]
+        output_dists = [self.neuron_distances[i] for i in self.output_indices]
+
         # Print statistics
-        print(f"Graph generated: {self.n_perceptrons} perceptrons, {total_edges} connections")
+        print(f"\nGraph generated: {self.n_perceptrons} perceptrons, {total_edges} connections")
+        print(f"  Input neurons: {len(self.input_indices)} at avg distance {np.mean(input_dists):.1f} from outputs")
+        print(f"  Output neurons: {len(self.output_indices)} at distance 0 (by definition)")
+        print(f"  Max distance-to-output: {np.max(self.neuron_distances[~np.isinf(self.neuron_distances)]):.0f} hops")
+        print(f"  Forward connections (toward outputs): {forward_count} ({100*forward_count/total_edges:.1f}%)")
+        print(f"  Backward connections (recurrent loops): {backward_count} ({100*backward_count/total_edges:.1f}%)")
+        print(f"  Lateral connections (same distance): {lateral_count} ({100*lateral_count/total_edges:.1f}%)")
         print(f"  Signal: {len(edges['signal'])} ({100*len(edges['signal'])/total_edges:.1f}%)")
         print(f"  Threshold modulation: {len(edges['threshold_mod'])} ({100*len(edges['threshold_mod'])/total_edges:.1f}%)")
         print(f"  Plasticity modulation: {len(edges['plasticity_mod'])} ({100*len(edges['plasticity_mod'])/total_edges:.1f}%)")
@@ -328,22 +457,30 @@ class MessyGraphGenerator:
         }
 
 
-def create_messy_graph(n_perceptrons=2000, avg_degree=30, seed=None):
+def create_messy_graph(n_perceptrons=2000, avg_degree=30, n_input_perceptrons=250, n_output_perceptrons=125, seed=None):
     """
-    Convenience function to create a messy graph.
+    Convenience function to create a deep messy graph with emergent layer structure.
 
     Args:
         n_perceptrons: Number of perceptrons (default: 2000)
         avg_degree: Average connections per perceptron (default: 30)
+        n_input_perceptrons: Number of input neurons (default: 250)
+        n_output_perceptrons: Number of output neurons (default: 125)
         seed: Random seed for reproducibility
 
     Returns:
-        Dictionary with 'signal', 'threshold_mod', 'plasticity_mod' edge lists
+        Tuple of (edges, neuron_distances, input_indices, output_indices) where:
+        - edges: Dictionary with 'signal', 'threshold_mod', 'plasticity_mod' edge lists
+        - neuron_distances: numpy array of distance-to-output for each neuron
+        - input_indices: list of input neuron indices
+        - output_indices: list of output neuron indices
     """
     generator = MessyGraphGenerator(
         n_perceptrons=n_perceptrons,
         avg_degree=avg_degree,
+        n_input_perceptrons=n_input_perceptrons,
+        n_output_perceptrons=n_output_perceptrons,
         seed=seed
     )
     edges = generator.generate()
-    return edges
+    return edges, generator.neuron_distances, generator.input_indices, generator.output_indices

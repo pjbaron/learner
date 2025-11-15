@@ -64,18 +64,23 @@ class FastMessyPerceptronNetwork(nn.Module):
         # Learnable thresholds (one per perceptron)
         self.thresholds = nn.Parameter(torch.randn(n_perceptrons) * 0.1)
 
-        # Generate messy graph
-        print(f"Generating messy graph with {n_perceptrons} perceptrons and avg degree {avg_degree}...")
-        edges = create_messy_graph(n_perceptrons, avg_degree, seed)
+        # Generate deep messy graph with emergent layer structure
+        print(f"Generating deep messy graph with {n_perceptrons} perceptrons and avg degree {avg_degree}...")
+        edges, neuron_distances, input_indices, output_indices = create_messy_graph(
+            n_perceptrons=n_perceptrons,
+            avg_degree=avg_degree,
+            n_input_perceptrons=n_input_perceptrons,
+            n_output_perceptrons=n_output_perceptrons,
+            seed=seed
+        )
+        self.neuron_distances = neuron_distances
 
         # Build sparse matrices for each connection type
         self._build_matrices(edges)
 
-        # Select input/output perceptrons (random subsets, non-overlapping)
-        all_indices = list(range(n_perceptrons))
-        np.random.shuffle(all_indices)
-        self.input_perceptron_indices = torch.tensor(all_indices[:n_input_perceptrons], dtype=torch.long)
-        self.output_perceptron_indices = torch.tensor(all_indices[n_input_perceptrons:n_input_perceptrons+n_output_perceptrons], dtype=torch.long)
+        # Use the computed input/output indices
+        self.input_perceptron_indices = torch.tensor(input_indices, dtype=torch.long)
+        self.output_perceptron_indices = torch.tensor(output_indices, dtype=torch.long)
 
         # Storage for per-perceptron plasticity rates (computed during forward pass)
         self.register_buffer('plasticity_rates', torch.ones(n_perceptrons) * default_plasticity)
