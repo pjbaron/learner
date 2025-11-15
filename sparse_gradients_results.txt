@@ -1,0 +1,97 @@
+Using device: cpu
+
+Sparse Gradient Configuration:
+  Keeping top 20% of gradients by magnitude
+  Zeroing out bottom 80% of gradients
+
+Dataset sizes:
+  Task 1 train: 2000, test: 500
+  Task 2 train: 2000, test: 500
+
+Creating deep messy perceptron network...
+Generating deep messy graph with 2000 perceptrons and avg degree 30...
+Building initial connectivity...
+Computing distance-to-output for all neurons...
+Selected inputs with average distance-to-output: 25.1
+Rebuilding connections based on computed distances...
+  Distance range: 0 to 38 hops
+  Built 60000 distance-based connections
+
+Graph generated: 2000 perceptrons, 60000 connections
+  Input neurons: 250 at avg distance 25.1 from outputs
+  Output neurons: 125 at distance 0 (by definition)
+  Max distance-to-output: 38 hops
+  Forward connections (toward outputs): 36000 (60.0%)
+  Backward connections (recurrent loops): 24000 (40.0%)
+  Lateral connections (same distance): 0 (0.0%)
+  Signal: 48000 (80.0%)
+  Threshold modulation: 9000 (15.0%)
+  Plasticity modulation: 3000 (5.0%)
+  Signal: 48000 connections
+  Threshold modulation: 9000 connections
+  Plasticity modulation: 3000 connections
+Network created: 2000 perceptrons, 60000 connections
+Input perceptrons: 250, Output perceptrons: 125
+
+============================================================
+TASK 1 TRAINING (Digits 0-4) - WITH SPARSE GRADIENTS
+============================================================
+Epoch  1: Loss=1.8276, Test Acc=74.0%, Grad Sparsity=20.0%
+Epoch  2: Loss=0.8963, Test Acc=90.4%, Grad Sparsity=20.0%
+Epoch  3: Loss=0.2797, Test Acc=95.2%, Grad Sparsity=20.0%
+Epoch  4: Loss=0.1543, Test Acc=95.4%, Grad Sparsity=20.0%
+Epoch  5: Loss=0.1251, Test Acc=96.4%, Grad Sparsity=20.0%
+Epoch  6: Loss=0.0972, Test Acc=96.6%, Grad Sparsity=20.0%
+Epoch  7: Loss=0.0795, Test Acc=96.2%, Grad Sparsity=20.0%
+Epoch  8: Loss=0.0743, Test Acc=96.2%, Grad Sparsity=20.0%
+Epoch  9: Loss=0.0603, Test Acc=96.6%, Grad Sparsity=20.0%
+Epoch 10: Loss=0.0635, Test Acc=97.2%, Grad Sparsity=20.0%
+
+Task 1 final test accuracy: 97.2%
+
+============================================================
+TASK 2 TRAINING (Digits 5-9) - WITH SPARSE GRADIENTS
+============================================================
+Epoch  1: Loss=2.1400, Test Acc=66.8%, Grad Sparsity=20.0%
+Epoch  2: Loss=0.7181, Test Acc=84.4%, Grad Sparsity=20.0%
+Epoch  3: Loss=0.4184, Test Acc=86.6%, Grad Sparsity=20.0%
+Epoch  4: Loss=0.3005, Test Acc=88.2%, Grad Sparsity=20.0%
+Epoch  5: Loss=0.2451, Test Acc=87.8%, Grad Sparsity=20.0%
+Epoch  6: Loss=0.2040, Test Acc=88.8%, Grad Sparsity=20.0%
+Epoch  7: Loss=0.1802, Test Acc=89.2%, Grad Sparsity=20.0%
+Epoch  8: Loss=0.1504, Test Acc=89.0%, Grad Sparsity=20.0%
+Epoch  9: Loss=0.1394, Test Acc=89.8%, Grad Sparsity=20.0%
+Epoch 10: Loss=0.1201, Test Acc=88.8%, Grad Sparsity=20.0%
+
+Task 2 final test accuracy: 88.8%
+
+============================================================
+CONTINUAL LEARNING RESULTS (SPARSE GRADIENTS)
+============================================================
+Gradient sparsity: keeping top 20% by magnitude
+Task 1 accuracy after Task 1: 97.2%
+Task 1 accuracy after Task 2: 1.0%
+Task 2 accuracy after Task 2: 88.8%
+
+Catastrophic forgetting: 99.0%
+✗ POOR: High catastrophic forgetting
+
+============================================================
+COMPARISON WITH BASELINE (Standard Adam)
+============================================================
+Baseline results (from test_continual_learning_fast.py):
+  Task 1 after Task 1: 98.0%
+  Task 1 after Task 2: 2.0%
+  Forgetting: 98.0% (POOR)
+
+Sparse gradient results (current test):
+  Task 1 after Task 1: 97.2%
+  Task 1 after Task 2: 1.0%
+  Forgetting: 99.0%
+
+Forgetting reduction: -1.0 percentage points
+~ SIMILAR to baseline
+
+============================================================
+TEST COMPLETE
+============================================================
