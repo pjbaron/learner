@@ -1,0 +1,170 @@
+[
+  {
+    "threshold": 0.0001,
+    "consumption": 0.1,
+    "recovery": 0.005,
+    "forgetting_pct": 99.3,
+    "task_1_initial": 0.98,
+    "task_1_after_task_2": 0.007,
+    "resource_mean_task2": 0.634
+  },
+  {
+    "threshold": 0.0001,
+    "consumption": 0.1,
+    "recovery": 0.001,
+    "forgetting_pct": 99.6,
+    "task_1_initial": 0.976,
+    "task_1_after_task_2": 0.004,
+    "resource_mean_task2": 0.552
+  },
+  {
+    "threshold": 0.0001,
+    "consumption": 0.01,
+    "recovery": 0.001,
+    "forgetting_pct": 99.7,
+    "task_1_initial": 0.984,
+    "task_1_after_task_2": 0.003,
+    "resource_mean_task2": 0.679
+  },
+  {
+    "threshold": 0.001,
+    "consumption": 0.1,
+    "recovery": 0.001,
+    "task_1_initial": 0.9798672030001511,
+    "task_1_after_task_2": 0.0023148148148148147,
+    "task_2_final": 0.9483660483046582,
+    "catastrophic_forgetting": 0.9775523881853363,
+    "forgetting_pct": 99.76376239476868,
+    "resource_mean_task1": 0.5990806221961975,
+    "resource_min_task1": 0.0010000000474974513,
+    "resource_mean_task2": 0.614113986492157,
+    "resource_min_task2": 0.0010000000474974513
+  },
+  {
+    "threshold": 0.0005,
+    "consumption": 0.1,
+    "recovery": 0.001,
+    "forgetting_pct": 99.8,
+    "task_1_initial": 0.98,
+    "task_1_after_task_2": 0.002,
+    "resource_mean_task2": 0.583
+  },
+  {
+    "threshold": 0.0005,
+    "consumption": 0.01,
+    "recovery": 0.001,
+    "forgetting_pct": 99.9,
+    "task_1_initial": 0.982,
+    "task_1_after_task_2": 0.001,
+    "resource_mean_task2": 0.771
+  },
+  {
+    "threshold": 0.0005,
+    "consumption": 0.1,
+    "recovery": 0.005,
+    "forgetting_pct": 99.9,
+    "task_1_initial": 0.98,
+    "task_1_after_task_2": 0.001,
+    "resource_mean_task2": 0.687
+  },
+  {
+    "threshold": 0.0001,
+    "consumption": 0.01,
+    "recovery": 0.005,
+    "forgetting_pct": 100.0,
+    "task_1_initial": 0.978,
+    "task_1_after_task_2": 0.0,
+    "resource_mean_task2": 0.972
+  },
+  {
+    "threshold": 0.0001,
+    "consumption": 0.05,
+    "recovery": 0.001,
+    "forgetting_pct": 100.0,
+    "task_1_initial": 0.98,
+    "task_1_after_task_2": 0.0,
+    "resource_mean_task2": 0.585
+  },
+  {
+    "threshold": 0.0001,
+    "consumption": 0.05,
+    "recovery": 0.005,
+    "forgetting_pct": 100.0,
+    "task_1_initial": 0.981,
+    "task_1_after_task_2": 0.0,
+    "resource_mean_task2": 0.699
+  },
+  {
+    "threshold": 0.0005,
+    "consumption": 0.01,
+    "recovery": 0.005,
+    "forgetting_pct": 100.0,
+    "task_1_initial": 0.981,
+    "task_1_after_task_2": 0.0,
+    "resource_mean_task2": 0.996
+  },
+  {
+    "threshold": 0.0005,
+    "consumption": 0.05,
+    "recovery": 0.001,
+    "forgetting_pct": 100.0,
+    "task_1_initial": 0.98,
+    "task_1_after_task_2": 0.0,
+    "resource_mean_task2": 0.613
+  },
+  {
+    "threshold": 0.0005,
+    "consumption": 0.05,
+    "recovery": 0.005,
+    "forgetting_pct": 100.0,
+    "task_1_initial": 0.983,
+    "task_1_after_task_2": 0.0,
+    "resource_mean_task2": 0.789
+  },
+  {
+    "threshold": 0.001,
+    "consumption": 0.01,
+    "recovery": 0.001,
+    "forgetting_pct": 100.0,
+    "task_1_initial": 0.983,
+    "task_1_after_task_2": 0.0,
+    "resource_mean_task2": 0.85
+  },
+  {
+    "threshold": 0.001,
+    "consumption": 0.01,
+    "recovery": 0.005,
+    "forgetting_pct": 100.0,
+    "task_1_initial": 0.98,
+    "task_1_after_task_2": 0.0,
+    "resource_mean_task2": 0.998
+  },
+  {
+    "threshold": 0.001,
+    "consumption": 0.05,
+    "recovery": 0.001,
+    "task_1_initial": 0.980060104234719,
+    "task_1_after_task_2": 0.0,
+    "task_2_final": 0.9475436798836055,
+    "catastrophic_forgetting": 0.980060104234719,
+    "forgetting_pct": 100.0,
+    "resource_mean_task1": 0.6278504729270935,
+    "resource_min_task1": 0.0010000000474974513,
+    "resource_mean_task2": 0.6542426347732544,
+    "resource_min_task2": 0.0010000000474974513
+  },
+  {
+    "threshold": 0.001,
+    "consumption": 0.05,
+    "recovery": 0.005,
+    "task_1_initial": 0.982445987654321,
+    "task_1_after_task_2": 0.0,
+    "task_2_final": 0.9514297074393222,
+    "catastrophic_forgetting": 0.982445987654321,
+    "forgetting_pct": 100.0,
+    "resource_mean_task1": 0.8366830348968506,
+    "resource_min_task1": 0.009999999776482582,
+    "resource_mean_task2": 0.839139461517334,
+    "resource_min_task2": 0.00999989453703165
+  }
+]
